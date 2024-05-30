@@ -79,21 +79,39 @@ void parse_command(char *cmd, char **args) {
 }
 
 /**
- * Executes the command using fork and execvp.
+ * Executes the command using fork and execvp, then prints the exit status.
  *
  * @param args Array of arguments for the command to execute.
  * @return -1 on fork failure, otherwise 0.
  */
 int execute_command(char **args) {
+    if (args[0] == NULL) {  // Early exit if no command is given
+        fprintf(stderr, "No command entered.\n");
+        return 0;
+    }
+
     pid_t pid = fork();
+    int status;
+
     if (pid == 0) {
         // Child process
         execvp(args[0], args);
         perror("execvp");
-        exit(1);
+        exit(EXIT_FAILURE);
     } else if (pid > 0) {
         // Parent process
-        waitpid(pid, NULL, 0);
+        waitpid(pid, &status, 0);
+        if (WIFEXITED(status)) {
+            int exit_status = WEXITSTATUS(status);
+
+            char full_command[MAX_INPUT_LENGTH] = "";
+            int len = 0;
+            for (int i = 0; args[i] != NULL; i++) {
+                len += snprintf(full_command + len, MAX_INPUT_LENGTH - len, "%s%s", (i > 0 ? " " : ""), args[i]);
+                if (len > MAX_INPUT_LENGTH) break; // Prevent buffer overflow. Not expected under current logic, but ensures safety against future modifications.
+            }
+            printf("Exitstatus [%s] = %d\n", full_command, exit_status);
+        }
     } else {
         perror("fork");
         return -1;
