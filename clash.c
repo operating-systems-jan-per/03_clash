@@ -11,18 +11,19 @@
 // Function prototypes
 void display_prompt();
 int read_command(char *cmd);
-void parse_command(char *cmd, char **args);
-int execute_command(char **args);
+void parse_command(char *cmd, char **args, int *background);
+int execute_command(char **args, int background);
 
 int main() {
     char cmd[MAX_INPUT_LENGTH];
     char *args[MAX_INPUT_LENGTH / 2];
+    int background;
 
     while (1) {
         display_prompt();
         if (read_command(cmd) == -1) break;
-        parse_command(cmd, args);
-        if (execute_command(args) == -1) break;
+        parse_command(cmd, args, &background);
+        if (execute_command(args, background) == -1) break;
     }
 
     return 0;
@@ -64,11 +65,13 @@ int read_command(char *cmd) {
 
 /**
  * Parses the command string into an array of arguments suitable for execvp.
+ * Also determines if the command should be run in the background.
  *
  * @param cmd The command string to parse.
  * @param args Array to store the arguments.
+ * @param background Pointer to store background execution flag.
  */
-void parse_command(char *cmd, char **args) {
+void parse_command(char *cmd, char **args, int *background) {
     int i = 0;
     char *token = strtok(cmd, " ");
     while (token != NULL) {
@@ -76,15 +79,23 @@ void parse_command(char *cmd, char **args) {
         token = strtok(NULL, " ");
     }
     args[i] = NULL;  // Null-terminate the arguments array
+
+    // Check if the last argument is an "&", indicating background execution
+    *background = (i > 0 && strcmp(args[i - 1], "&") == 0) ? 1 : 0;
+    if (*background) {
+        args[i - 1] = NULL; // Remove "&" from arguments
+    }
 }
 
 /**
  * Executes the command using fork and execvp, then prints the exit status.
+ * If the command is to be run in the background, it does not wait for the process to finish.
  *
  * @param args Array of arguments for the command to execute.
+ * @param background Indicates whether the command should run in the background.
  * @return -1 on fork failure, otherwise 0.
  */
-int execute_command(char **args) {
+int execute_command(char **args, int background) {
     if (args[0] == NULL) {  // Early exit if no command is given
         fprintf(stderr, "No command entered.\n");
         return 0;
@@ -100,17 +111,20 @@ int execute_command(char **args) {
         exit(EXIT_FAILURE);
     } else if (pid > 0) {
         // Parent process
-        waitpid(pid, &status, 0);
-        if (WIFEXITED(status)) {
-            int exit_status = WEXITSTATUS(status);
-
-            char full_command[MAX_INPUT_LENGTH] = "";
-            int len = 0;
-            for (int i = 0; args[i] != NULL; i++) {
-                len += snprintf(full_command + len, MAX_INPUT_LENGTH - len, "%s%s", (i > 0 ? " " : ""), args[i]);
-                if (len > MAX_INPUT_LENGTH) break; // Prevent buffer overflow. Not expected under current logic, but ensures safety against future modifications.
+        if (background) {
+            printf("Process [%d] running in background.\n", pid);
+        } else {
+            waitpid(pid, &status, 0);
+            if (WIFEXITED(status)) {
+                int exit_status = WEXITSTATUS(status);
+                char full_command[MAX_INPUT_LENGTH] = "";
+                int len = 0;
+                for (int i = 0; args[i] != NULL; i++) {
+                    len += snprintf(full_command + len, MAX_INPUT_LENGTH - len, "%s%s", (i > 0 ? " " : ""), args[i]);
+                    if (len > MAX_INPUT_LENGTH) break; // Prevent buffer overflow. Not expected under current logic, but ensures safety against future modifications.
+                }
+                printf("Exitstatus [%s] = %d\n", full_command, exit_status);
             }
-            printf("Exitstatus [%s] = %d\n", full_command, exit_status);
         }
     } else {
         perror("fork");
