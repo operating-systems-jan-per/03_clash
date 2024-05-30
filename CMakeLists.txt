@@ -7,4 +7,5 @@ include_directories(.)
 
 add_executable(03_clash
         plist.c
-        plist.h)
+        plist.h
+        clash.c)
