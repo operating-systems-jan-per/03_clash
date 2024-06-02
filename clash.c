@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <limits.h>
 
-#define MAX_INPUT_LENGTH 1024
+#define MAX_INPUT_LENGTH 1337
 
 // Function prototypes
 void display_prompt();
@@ -59,9 +59,21 @@ int read_command(char *cmd) {
             return -1;
         }
     }
-    cmd[strcspn(cmd, "\n")] = 0;  // Remove newline character
+
+    // Check if the input was too long & newline character is not the last read character
+    if (strchr(cmd, '\n') == NULL && !feof(stdin)) {
+        int ch;
+        while ((ch = getchar()) != '\n' && ch != EOF);
+
+        fprintf(stderr, "Warning: Input exceeds the maximum length of %d bytes and has been discarded.\n", MAX_INPUT_LENGTH - 1);
+        return -1;
+    }
+
+    // Properly terminate the string by removing the newline character
+    cmd[strcspn(cmd, "\n")] = 0;
     return 0;
 }
+
 
 /**
  * Parses the command string into an array of arguments suitable for execvp.
