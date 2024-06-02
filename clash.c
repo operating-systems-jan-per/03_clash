@@ -16,7 +16,7 @@ int execute_command(char **args, int background);
 
 int main() {
     char cmd[MAX_INPUT_LENGTH];
-    char *args[MAX_INPUT_LENGTH / 2];
+    char *args[MAX_INPUT_LENGTH / 2]; // Allocate half of MAX_INPUT_LENGTH for args to accommodate for up to one argument per two characters (arg + separator)
     int background;
 
     while (1) {
